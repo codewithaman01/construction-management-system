@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>HR Dashboard</h2>
+
+<div style="display:flex; gap:20px; flex-wrap:wrap;">
+
+    <a href="/hr/employees/" style="
+        background:white;
+        padding:20px;
+        border-radius:10px;
+        width:200px;
+        text-decoration:none;
+        color:black;
+    ">
+        <h3>👨‍💼 Employees</h3>
+        <p>Manage Employees</p>
+    </a>
+
+    <a href="/hr/attendance/" style="
+        background:white;
+        padding:20px;
+        border-radius:10px;
+        width:200px;
+        text-decoration:none;
+        color:black;
+    ">
+        <h3>📅 Attendance</h3>
+        <p>Track Attendance</p>
+    </a>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>Dashboard</h2>
+
+<div style="display:flex; gap:20px;">
+
+    <div style="background:white; padding:20px; border-radius:10px;">
+        <h3>Total Projects</h3>
+        <p id="projectCount">0</p>
+    </div>
+
+    <div style="background:white; padding:20px; border-radius:10px;">
+        <h3>Total Tasks</h3>
+        <p id="taskCount">0</p>
+    </div>
+
+</div>
+
+<script>
+fetch('/projects/tasks/')
+.then(res => res.json())
+.then(data => {
+    document.getElementById('projectCount').innerText = data.projects.length;
+});
+</script>
+
+<script>
+fetch('/dashboard/data/')
+.then(res => res.json())
+.then(data => {
+    document.getElementById('projectCount').innerText = data.projects;
+    document.getElementById('taskCount').innerText = data.tasks;
+});
+</script>
+{% endblock %}

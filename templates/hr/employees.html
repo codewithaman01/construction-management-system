@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>Employees</h2>
+
+<input type="text" id="name" placeholder="Name">
+<input type="text" id="email" placeholder="Email">
+<input type="text" id="role" placeholder="Role">
+
+<button onclick="addEmployee()">Add</button>
+
+<hr>
+
+<div id="employeeList">
+    {% for emp in employees %}
+        <p>{{ emp.name }} - {{ emp.role }}</p>
+    {% endfor %}
+</div>
+
+<script>
+function addEmployee(){
+    fetch('/hr/add-employee/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({
+            name: document.getElementById('name').value,
+            email: document.getElementById('email').value,
+            role: document.getElementById('role').value
+        })
+    }).then(() => location.reload());
+}
+
+function getCSRF(){
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+</script>
+
+{% endblock %}

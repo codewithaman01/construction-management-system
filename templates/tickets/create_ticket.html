@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Ticket</title>
+</head>
+<body>
+
+<h2>Create Ticket</h2>
+
+<input type="text" id="title" placeholder="Title"><br><br>
+<textarea id="description" placeholder="Description"></textarea><br><br>
+
+<input type="file" id="img"><br><br>
+
+<button onclick="submitTicket()">Submit</button>
+
+<script>
+let base64Image = "";
+
+let fileInput = document.getElementById('img');
+
+fileInput.onchange = () => {
+    let reader = new FileReader();
+
+    reader.onload = function(){
+        base64Image = reader.result;
+    }
+
+    reader.readAsDataURL(fileInput.files[0]);
+}
+
+function submitTicket(){
+    fetch('/save-ticket/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            image: base64Image
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert("Ticket Created");
+    });
+}
+
+// CSRF helper
+function getCSRFToken(){
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+</script>
+
+</body>
+</html>
