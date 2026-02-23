@@ -1,8 +1,13 @@
 from django.urls import path
-from .views import hr_dashboard, employee_page,add_employee
+from . import views
 
 urlpatterns = [
-    path('', hr_dashboard),
-    path('employees/', employee_page),
-    path('add-employee/', add_employee),
+    path('', views.hr_dashboard),  # 🔥 THIS FIXES /hr/
+    
+    path('employees/', views.employee_page),
+    path('get-employees/', views.get_employees),
+    path('add-employee/', views.add_employee),
+    path('update-employee/', views.update_employee),
+    path('delete-employee/', views.delete_employee),
+    path('get-roles/', views.get_roles),
 ]

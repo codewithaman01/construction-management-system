@@ -1,8 +1,11 @@
 {% extends 'base.html' %}
-
 {% block content %}
 
 <h2>Employees</h2>
+
+<input type="text" id="search" placeholder="Search..." onkeyup="loadEmployees()">
+
+<br><br>
 
 <input type="text" id="name" placeholder="Name">
 <input type="text" id="email" placeholder="Email">
@@ -12,13 +15,50 @@
 
 <hr>
 
-<div id="employeeList">
-    {% for emp in employees %}
-        <p>{{ emp.name }} - {{ emp.role }}</p>
-    {% endfor %}
-</div>
+<table border="1" cellpadding="10">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="employeeList"></tbody>
+</table>
 
 <script>
+function getCSRF(){
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+
+function loadEmployees(){
+    let q = document.getElementById('search').value;
+
+    fetch(`/hr/get-employees/?q=${q}`)
+    .then(res => res.json())
+    .then(data => {
+        let html = '';
+
+        data.employees.forEach(emp => {
+            html += `
+            <tr>
+                <td><input value="${emp.name}" id="name_${emp.id}"></td>
+                <td><input value="${emp.email}" id="email_${emp.id}"></td>
+                <td><input value="${emp.role}" id="role_${emp.id}"></td>
+                <td>
+                    <button onclick="updateEmployee(${emp.id})">Update</button>
+                    <button onclick="deleteEmployee(${emp.id})">Delete</button>
+                </td>
+            </tr>`;
+        });
+
+        document.getElementById('employeeList').innerHTML = html;
+    });
+}
+
 function addEmployee(){
     fetch('/hr/add-employee/', {
         method: 'POST',
@@ -31,14 +71,56 @@ function addEmployee(){
             email: document.getElementById('email').value,
             role: document.getElementById('role').value
         })
-    }).then(() => location.reload());
+    }).then(() => {
+        loadEmployees();
+    });
 }
 
-function getCSRF(){
-    return document.cookie.split('; ')
-        .find(row => row.startsWith('csrftoken'))
-        ?.split('=')[1];
+function updateEmployee(id){
+    fetch('/hr/update-employee/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({
+            id: id,
+            name: document.getElementById(`name_${id}`).value,
+            email: document.getElementById(`email_${id}`).value,
+            role: document.getElementById(`role_${id}`).value
+        })
+    }).then(() => loadEmployees());
+}
+
+function deleteEmployee(id){
+    fetch('/hr/delete-employee/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({id: id})
+    }).then(() => loadEmployees());
+}
+
+window.onload = loadEmployees;
+</script>
+<script>
+function loadRoles(){
+    fetch('/hr/get-roles/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '';
+        data.roles.forEach(r => {
+            html += `<option value="${r.id}">${r.name}</option>`;
+        });
+        document.getElementById('role').innerHTML = html;
+    });
+}
+
+window.onload = function(){
+    loadEmployees();
+    loadRoles();
 }
 </script>
-
 {% endblock %}
