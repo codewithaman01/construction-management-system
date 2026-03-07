@@ -15,10 +15,12 @@ from .models import User, Role
 # LOGIN
 # ─────────────────────────────────────────
 def login_view(request):
+
     if request.user.is_authenticated:
         return redirect('/dashboard/')
 
     if request.method == 'POST':
+
         username = request.POST.get('username')
         password = request.POST.get('password')
 
@@ -27,17 +29,18 @@ def login_view(request):
         if user is not None:
             login(request, user)
 
-            # Find default module
-            permission = RolePermission.objects.filter(
-                role=user.role,
-                module__is_default=True
-            ).first()
+            permissions = RolePermission.objects.filter(role=user.role)
 
-            # fallback module
+            permission = None
+
+            for p in permissions:
+                module = p.module
+                if module and module.is_default:
+                    permission = p
+                    break
+
             if not permission:
-                permission = RolePermission.objects.filter(
-                    role=user.role
-                ).first()
+                permission = permissions.first()
 
             if permission:
                 return redirect(permission.module.url)
