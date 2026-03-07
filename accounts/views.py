@@ -15,34 +15,38 @@ from .models import User, Role
 # LOGIN
 # ─────────────────────────────────────────
 def login_view(request):
-    # If user is already logged in, skip the login page
     if request.user.is_authenticated:
         return redirect('/dashboard/')
 
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
             login(request, user)
 
-            # Redirect to the default module for this role
+            # Find default module
             permission = RolePermission.objects.filter(
-                role=user.role, module__is_default=True
-            ).select_related('module').first()
+                role=user.role,
+                module__is_default=True
+            ).first()
 
-            # Fallback: any permitted module
+            # fallback module
             if not permission:
                 permission = RolePermission.objects.filter(
                     role=user.role
-                ).select_related('module').first()
+                ).first()
 
             if permission:
                 return redirect(permission.module.url)
+
             return redirect('/dashboard/')
 
-        return render(request, 'login.html', {'error': 'Invalid username or password'})
+        return render(request, 'login.html', {
+            'error': 'Invalid username or password'
+        })
 
     return render(request, 'login.html')
 
