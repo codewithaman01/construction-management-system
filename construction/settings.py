@@ -3,6 +3,7 @@ Django settings for construction project.
 """
 
 from pathlib import Path
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -10,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 SECRET_KEY = 'django-insecure-change-this'
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # APPLICATIONS
@@ -113,3 +114,5 @@ AUTHENTICATION_BACKENDS = [
 ]
 # Add this at the bottom of settings.py
 LOGIN_URL = '/'   # ← when @login_required rejects a guest, send them to login
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
