@@ -12,5 +12,26 @@ class Module(models.Model):
 
 
 class RolePermission(models.Model):
-    role = models.ForeignKey(Role, on_delete=models.CASCADE)
-    module = models.ForeignKey(Module, on_delete=models.CASCADE)
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.CASCADE,
+        db_constraint=False
+    )
+
+    module = models.ForeignKey(
+        Module,
+        on_delete=models.CASCADE,
+        db_constraint=False
+    )
+
+    def clean_fields(self, exclude=None):
+        if exclude is None:
+            exclude = set()
+        else:
+            exclude = set(exclude)
+
+        # Skip Djongo FK validation
+        exclude.add("role")
+        exclude.add("module")
+
+        super().clean_fields(exclude=exclude)

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Store Dashboard{% endblock %}
+{% block page_title %}Store & Inventory{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-slate-800">Store Dashboard</h2>
+    <p class="text-slate-500 text-sm mt-1">Manage all construction materials, stock movements and requests.</p>
+</div>
+
+<!-- STAT CARDS -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div class="p-2.5 bg-blue-50 rounded-xl w-fit mb-3">
+            <i class="fas fa-boxes text-blue-600"></i>
+        </div>
+        <p class="text-3xl font-bold text-slate-800" id="statMaterials">—</p>
+        <p class="text-sm text-slate-500 mt-1">Total Materials</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div class="p-2.5 bg-red-50 rounded-xl w-fit mb-3">
+            <i class="fas fa-exclamation-triangle text-red-500"></i>
+        </div>
+        <p class="text-3xl font-bold text-red-600" id="statLow">—</p>
+        <p class="text-sm text-slate-500 mt-1">Low Stock Alerts</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div class="p-2.5 bg-yellow-50 rounded-xl w-fit mb-3">
+            <i class="fas fa-clock text-yellow-600"></i>
+        </div>
+        <p class="text-3xl font-bold text-slate-800" id="statPending">—</p>
+        <p class="text-sm text-slate-500 mt-1">Pending Requests</p>
+    </div>
+    <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div class="p-2.5 bg-green-50 rounded-xl w-fit mb-3">
+            <i class="fas fa-truck text-green-600"></i>
+        </div>
+        <p class="text-3xl font-bold text-slate-800" id="statInward">—</p>
+        <p class="text-sm text-slate-500 mt-1">Today's Inwards</p>
+    </div>
+</div>
+
+<!-- QUICK LINKS -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <a href="/store/stock/" class="bg-white rounded-2xl border border-slate-100 p-5 hover:border-amber-300 hover:shadow-md transition-all group">
+        <div class="w-10 h-10 bg-blue-50 group-hover:bg-blue-100 rounded-xl flex items-center justify-center mb-3">
+            <i class="fas fa-warehouse text-blue-600"></i>
+        </div>
+        <p class="font-semibold text-slate-800 text-sm">Material Stock</p>
+        <p class="text-xs text-slate-400 mt-1">Add, edit & view materials</p>
+    </a>
+    <a href="/store/inward/" class="bg-white rounded-2xl border border-slate-100 p-5 hover:border-amber-300 hover:shadow-md transition-all group">
+        <div class="w-10 h-10 bg-green-50 group-hover:bg-green-100 rounded-xl flex items-center justify-center mb-3">
+            <i class="fas fa-arrow-down text-green-600"></i>
+        </div>
+        <p class="font-semibold text-slate-800 text-sm">Stock Inward</p>
+        <p class="text-xs text-slate-400 mt-1">Record incoming materials</p>
+    </a>
+    <a href="/store/outward/" class="bg-white rounded-2xl border border-slate-100 p-5 hover:border-amber-300 hover:shadow-md transition-all group">
+        <div class="w-10 h-10 bg-orange-50 group-hover:bg-orange-100 rounded-xl flex items-center justify-center mb-3">
+            <i class="fas fa-arrow-up text-orange-600"></i>
+        </div>
+        <p class="font-semibold text-slate-800 text-sm">Stock Outward</p>
+        <p class="text-xs text-slate-400 mt-1">Issue materials to site</p>
+    </a>
+    <a href="/store/requirements/" class="bg-white rounded-2xl border border-slate-100 p-5 hover:border-amber-300 hover:shadow-md transition-all group">
+        <div class="w-10 h-10 bg-purple-50 group-hover:bg-purple-100 rounded-xl flex items-center justify-center mb-3">
+            <i class="fas fa-clipboard-list text-purple-600"></i>
+        </div>
+        <p class="font-semibold text-slate-800 text-sm">Requirements</p>
+        <p class="text-xs text-slate-400 mt-1">Raise & approve requests</p>
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+fetch('/store/stats/')
+    .then(r => r.json())
+    .then(d => {
+        document.getElementById('statMaterials').textContent = d.total_materials;
+        document.getElementById('statLow').textContent       = d.low_stock_count;
+        document.getElementById('statPending').textContent   = d.pending_requests;
+        document.getElementById('statInward').textContent    = d.today_inward;
+    });
+</script>
+{% endblock %}

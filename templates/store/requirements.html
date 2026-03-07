@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>📦 Store Requirements</h2>
+
+<div style="margin-bottom:20px;">
+    <select id="material"></select>
+    <input type="number" id="quantity" placeholder="Quantity">
+    <button onclick="addRequirement()">Add</button>
+</div>
+
+<hr>
+
+<table border="1" cellpadding="10" width="100%">
+    <thead>
+        <tr>
+            <th>Material</th>
+            <th>Qty</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="reqList"></tbody>
+</table>
+
+<script>
+function getCSRF(){
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+
+// 🔥 LOAD MATERIALS
+function loadMaterials(){
+    fetch('/store/get-materials/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '<option value="">Select Material</option>';
+
+        data.materials.forEach(m => {
+            html += `<option value="${m.id}">${m.name}</option>`;
+        });
+
+        document.getElementById('material').innerHTML = html;
+    });
+}
+
+// 🔥 STATUS COLOR
+function getStatusColor(status){
+    if(status === 'pending') return 'orange';
+    if(status === 'approved') return 'green';
+    if(status === 'rejected') return 'red';
+    return 'black';
+}
+
+// 🔥 LOAD REQUIREMENTS
+function loadRequirements(){
+    fetch('/store/get-requirements/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '';
+
+        data.requirements.forEach(r => {
+
+            let actions = '';
+
+            if(r.status === 'pending'){
+                actions = `
+                    <button onclick="updateStatus(${r.id}, 'approved')">✅ Approve</button>
+                    <button onclick="updateStatus(${r.id}, 'rejected')">❌ Reject</button>
+                `;
+            } else {
+                actions = `<span>—</span>`;
+            }
+
+            html += `
+            <tr>
+                <td>${r.material}</td>
+                <td>${r.quantity}</td>
+
+                <td style="color:${getStatusColor(r.status)}; font-weight:bold;">
+                    ${r.status.toUpperCase()}
+                </td>
+
+                <td>${actions}</td>
+            </tr>`;
+        });
+
+        document.getElementById('reqList').innerHTML = html;
+    });
+}
+
+// 🔥 ADD
+function addRequirement(){
+    let material = document.getElementById('material').value;
+    let quantity = document.getElementById('quantity').value;
+
+    if(!material || !quantity){
+        alert("Material & Quantity required");
+        return;
+    }
+
+    fetch('/store/add-requirement/', {
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({
+            material: material,
+            quantity: quantity
+        })
+    })
+    .then(res => res.json())
+    .then(() => {
+        loadRequirements();
+        document.getElementById('quantity').value = '';
+    });
+}
+
+// 🔥 APPROVE / REJECT (AUTO STOCK DEDUCTION TRIGGER)
+function updateStatus(id, status){
+    fetch('/store/update-requirement/', {
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({id, status})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.error){
+            alert(data.error);  // ❌ if not enough stock
+        }
+        loadRequirements();
+    });
+}
+
+// INIT
+window.onload = function(){
+    loadMaterials();
+    loadRequirements();
+}
+</script>
+
+{% endblock %}

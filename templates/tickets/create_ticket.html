@@ -1,60 +1,158 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Create Ticket</title>
-</head>
-<body>
+<!-- ✅ FIXED — templates/tickets/create_ticket.html -->
+{% extends 'base.html' %}
+{% block page_title %}Create Ticket{% endblock %}
 
-<h2>Create Ticket</h2>
+{% block content %}
+<div class="max-w-2xl">
+  <div class="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm">
+    <h2 class="text-xl font-bold text-slate-800 mb-1">Generate New Ticket</h2>
+    <p class="text-slate-500 text-sm mb-6">Report a site issue. GPS location is captured automatically.</p>
 
-<input type="text" id="title" placeholder="Title"><br><br>
-<textarea id="description" placeholder="Description"></textarea><br><br>
+    <!-- GPS STATUS INDICATOR -->
+    <div id="gpsStatus" class="mb-5 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
+      <i class="fas fa-map-marker-alt text-blue-500"></i>
+      <span id="gpsText" class="text-sm text-blue-700 font-medium">Capturing GPS location...</span>
+    </div>
 
-<input type="file" id="img"><br><br>
+    <div id="ticketForm" class="space-y-5">
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Title *</label>
+        <input id="ticketTitle" type="text" placeholder="e.g. Crack in foundation Block B"
+          class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Description *</label>
+        <textarea id="ticketDesc" rows="4" placeholder="Describe the issue in detail..."
+          class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none text-sm resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Site Photo</label>
+        <div class="flex gap-3">
+          <!-- Camera button (opens device camera directly on mobile) -->
+          <button type="button" onclick="document.getElementById('cameraInput').click()"
+            class="flex-1 py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:border-amber-400 hover:text-amber-600 transition-all text-sm font-medium">
+            <i class="fas fa-camera mr-2"></i>Take Photo
+          </button>
+          <!-- File upload button -->
+          <button type="button" onclick="document.getElementById('fileInput').click()"
+            class="flex-1 py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:border-amber-400 hover:text-amber-600 transition-all text-sm font-medium">
+            <i class="fas fa-upload mr-2"></i>Upload File
+          </button>
+        </div>
+        <!-- capture="environment" means it opens the REAR camera on mobile -->
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="fileInput"   accept="image/*" class="hidden">
 
-<button onclick="submitTicket()">Submit</button>
+        <div id="previewWrap" class="mt-3 hidden">
+          <img id="preview" class="w-full max-h-48 object-cover rounded-xl border border-slate-200">
+          <button type="button" onclick="clearPhoto()"
+            class="mt-2 text-xs text-red-500 hover:underline">Remove photo</button>
+        </div>
+      </div>
 
+      <button onclick="submitTicket()"
+        class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm transition-all">
+        <i class="fas fa-paper-plane mr-2"></i>Submit Ticket
+      </button>
+    </div>
+
+    <!-- SUCCESS MESSAGE -->
+    <div id="successMsg" class="hidden text-center py-10">
+      <i class="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
+      <h3 class="text-xl font-bold text-slate-800">Ticket Submitted!</h3>
+      <p class="text-slate-500 text-sm mt-2">GPS location was saved with your ticket.</p>
+      <div class="mt-5 flex gap-3 justify-center">
+        <a href="/tickets/track/" class="px-5 py-2.5 bg-amber-500 text-white font-semibold rounded-lg text-sm">
+          Track My Tickets
+        </a>
+        <button onclick="resetForm()"
+          class="px-5 py-2.5 border border-slate-200 text-slate-700 font-semibold rounded-lg text-sm hover:bg-slate-50">
+          New Ticket
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-let base64Image = "";
+let base64Image = '';
+let latitude    = null;
+let longitude   = null;
 
-let fileInput = document.getElementById('img');
-
-fileInput.onchange = () => {
-    let reader = new FileReader();
-
-    reader.onload = function(){
-        base64Image = reader.result;
+// ✅ Step 1: Get GPS coordinates as soon as page loads
+navigator.geolocation.getCurrentPosition(
+    position => {
+        latitude  = position.coords.latitude;
+        longitude = position.coords.longitude;
+        // Show green success indicator
+        document.getElementById('gpsStatus').className =
+            'mb-5 p-3 bg-green-50 border border-green-100 rounded-xl flex items-center gap-3';
+        document.getElementById('gpsText').innerHTML =
+            `<i class="fas fa-check-circle text-green-500 mr-1"></i>
+             GPS captured: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    },
+    error => {
+        // Show warning if GPS is blocked
+        document.getElementById('gpsStatus').className =
+            'mb-5 p-3 bg-yellow-50 border border-yellow-100 rounded-xl flex items-center gap-3';
+        document.getElementById('gpsText').innerHTML =
+            '<i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i> GPS not available. Please enable location permission.';
     }
+);
 
-    reader.readAsDataURL(fileInput.files[0]);
+// ✅ Step 2: Handle photo selection (both camera and file)
+function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        base64Image = e.target.result;
+        document.getElementById('preview').src = base64Image;
+        document.getElementById('previewWrap').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+document.getElementById('cameraInput').onchange = e => handleFile(e.target.files[0]);
+document.getElementById('fileInput').onchange   = e => handleFile(e.target.files[0]);
+
+function clearPhoto() {
+    base64Image = '';
+    document.getElementById('previewWrap').classList.add('hidden');
+    document.getElementById('cameraInput').value = '';
+    document.getElementById('fileInput').value   = '';
 }
 
-function submitTicket(){
-    fetch('/save-ticket/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({
-            title: document.getElementById('title').value,
-            description: document.getElementById('description').value,
-            image: base64Image
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert("Ticket Created");
+// ✅ Step 3: Submit with GPS coordinates included
+function submitTicket() {
+    const title = document.getElementById('ticketTitle').value.trim();
+    const desc  = document.getElementById('ticketDesc').value.trim();
+    if (!title || !desc) {
+        alert('Please fill in the title and description.');
+        return;
+    }
+    apiFetch('/tickets/save/', 'POST', {
+        title,
+        description: desc,
+        image:     base64Image,
+        latitude:  latitude,   // ← sent to server
+        longitude: longitude,  // ← sent to server
+    }).then(data => {
+        if (data.status === 'success') {
+            document.getElementById('ticketForm').classList.add('hidden');
+            document.getElementById('successMsg').classList.remove('hidden');
+        } else {
+            alert(data.error || 'Error submitting ticket.');
+        }
     });
 }
 
-// CSRF helper
-function getCSRFToken(){
-    return document.cookie.split('; ')
-        .find(row => row.startsWith('csrftoken'))
-        ?.split('=')[1];
+function resetForm() {
+    document.getElementById('ticketTitle').value = '';
+    document.getElementById('ticketDesc').value  = '';
+    clearPhoto();
+    document.getElementById('ticketForm').classList.remove('hidden');
+    document.getElementById('successMsg').classList.add('hidden');
 }
 </script>
-
-</body>
-</html>
+{% endblock %}

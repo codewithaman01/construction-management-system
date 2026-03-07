@@ -10,4 +10,20 @@ class Role(models.Model):
 
 
 class User(AbstractUser):
-    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True)
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_constraint=False
+    )
+
+    def clean_fields(self, exclude=None):
+        if exclude is None:
+            exclude = set()
+        else:
+            exclude = set(exclude)
+
+        exclude.add('role')   # correct for set
+
+        super().clean_fields(exclude=exclude)

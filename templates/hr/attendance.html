@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Attendance</h2>
+
+<!-- SELECT EMPLOYEE -->
+<select id="employee"></select>
+
+<!-- STATUS -->
+<select id="status">
+    <option value="present">Present</option>
+    <option value="absent">Absent</option>
+    <option value="leave">Leave</option>
+</select>
+
+<button onclick="markAttendance()">Mark Attendance</button>
+
+<hr>
+
+<h3>Today's Attendance</h3>
+<div id="attendanceList"></div>
+
+<script>
+
+// CSRF
+function getCSRF(){
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+
+
+// LOAD EMPLOYEES
+function loadEmployees(){
+    fetch('/hr/get-employees/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '';
+
+        data.employees.forEach(e => {
+            html += `<option value="${e.id}">${e.name}</option>`;
+        });
+
+        document.getElementById('employee').innerHTML = html;
+    });
+}
+
+
+// MARK ATTENDANCE
+function markAttendance(){
+
+    let emp = document.getElementById('employee').value;
+    let status = document.getElementById('status').value;
+
+    if(!emp){
+        alert("Select employee");
+        return;
+    }
+
+    fetch('/hr/mark-attendance/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({
+            employee: emp,
+            status: status
+        })
+    }).then(() => {
+        loadAttendance();
+    });
+}
+
+
+// LOAD ATTENDANCE
+function loadAttendance(){
+    fetch('/hr/get-attendance/')
+    .then(res => res.json())
+    .then(data => {
+
+        let html = '';
+
+        data.attendance.forEach(a => {
+            html += `
+                <p><b>${a.employee}</b> → ${a.status}</p>
+            `;
+        });
+
+        document.getElementById('attendanceList').innerHTML = html;
+    });
+}
+
+
+// INIT
+window.onload = function(){
+    loadEmployees();
+    loadAttendance();
+}
+
+</script>
+
+{% endblock %}

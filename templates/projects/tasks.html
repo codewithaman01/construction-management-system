@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Tasks</h2>
+
+<input type="text" id="title" placeholder="Task Title">
+<input type="text" id="description" placeholder="Description">
+
+<select id="project"></select>
+<select id="employee"></select>
+
+<select id="status">
+    <option value="pending">Pending</option>
+    <option value="in_progress">In Progress</option>
+    <option value="done">Done</option>
+</select>
+
+<button onclick="addTask()">Add Task</button>
+
+<hr>
+
+<table border="1">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Project</th>
+            <th>Employee</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="taskList"></tbody>
+</table>
+
+<script>
+
+function getCSRF(){
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+
+
+// LOAD PROJECTS
+function loadProjects(){
+    fetch('/projects/get-projects/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '';
+        data.projects.forEach(p => {
+            html += `<option value="${p.id}">${p.name}</option>`;
+        });
+        document.getElementById('project').innerHTML = html;
+    });
+}
+
+
+// LOAD EMPLOYEES
+function loadEmployees(){
+    fetch('/hr/get-employees/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '';
+        data.employees.forEach(e => {
+            html += `<option value="${e.id}">${e.name}</option>`;
+        });
+        document.getElementById('employee').innerHTML = html;
+    });
+}
+
+
+// LOAD TASKS
+function loadTasks(){
+    fetch('/projects/get-tasks/')
+    .then(res => res.json())
+    .then(data => {
+
+        let html = '';
+
+        data.tasks.forEach(t => {
+            html += `
+            <tr>
+                <td>${t.title}</td>
+                <td>${t.project}</td>
+                <td>${t.employee}</td>
+                <td>${t.status}</td>
+                <td>
+                    <button onclick="deleteTask(${t.id})">Delete</button>
+                </td>
+            </tr>`;
+        });
+
+        document.getElementById('taskList').innerHTML = html;
+    });
+}
+
+
+// ADD TASK
+function addTask(){
+    fetch('/projects/create-task/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            project: document.getElementById('project').value,
+            employee: document.getElementById('employee').value,
+            status: document.getElementById('status').value
+        })
+    }).then(() => loadTasks());
+}
+
+
+// DELETE
+function deleteTask(id){
+    fetch('/projects/delete-task/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({id: id})
+    }).then(() => loadTasks());
+}
+
+
+// INIT
+window.onload = function(){
+    loadProjects();
+    loadEmployees();
+    loadTasks();
+}
+
+</script>
+
+{% endblock %}

@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'projects',
     'tickets',
     'hr',
+    'store',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -75,8 +76,11 @@ WSGI_APPLICATION = 'construction.wsgi.application'
 # DATABASE
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'djongo',
+        'NAME': 'construction_db',
+        'CLIENT': {
+            'host': 'mongodb+srv://aman:Am%40n7074@cluster0.qnmxxb4.mongodb.net/construction_db?retryWrites=true&w=majority'
+        }
     }
 }
 
@@ -107,3 +111,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
+# Add this at the bottom of settings.py
+LOGIN_URL = '/'   # ← when @login_required rejects a guest, send them to login

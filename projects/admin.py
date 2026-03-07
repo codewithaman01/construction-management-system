@@ -4,10 +4,9 @@ from .models import Project, Task
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('name', 'created_by')
+    list_display = ('id', 'name', 'manager', 'status', 'created_at')  # ✅ FIXED
 
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('title', 'project', 'status')
-    list_filter = ('status',)
+    list_display = ('id', 'title', 'project', 'assigned_to', 'status')

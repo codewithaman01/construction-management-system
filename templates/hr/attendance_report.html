@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Attendance Report</h2>
+
+<!-- FILTERS -->
+<input type="date" id="date">
+
+<select id="employee"></select>
+
+<button onclick="loadReport()">Search</button>
+
+<hr>
+
+<table border="1" cellpadding="10">
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody id="reportTable"></tbody>
+</table>
+
+<script>
+
+// LOAD EMPLOYEES
+function loadEmployees(){
+    fetch('/hr/get-employees/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '<option value="">All Employees</option>';
+
+        data.employees.forEach(e => {
+            html += `<option value="${e.id}">${e.name}</option>`;
+        });
+
+        document.getElementById('employee').innerHTML = html;
+    });
+}
+
+
+// LOAD REPORT
+function loadReport(){
+
+    let date = document.getElementById('date').value;
+    let employee = document.getElementById('employee').value;
+
+    fetch(`/hr/get-attendance-report/?date=${date}&employee=${employee}`)
+    .then(res => res.json())
+    .then(data => {
+
+        let html = '';
+
+        data.data.forEach(r => {
+            html += `
+                <tr>
+                    <td>${r.employee}</td>
+                    <td>${r.date}</td>
+                    <td>${r.status}</td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('reportTable').innerHTML = html;
+    });
+}
+
+
+// INIT
+window.onload = function(){
+    loadEmployees();
+    loadReport();
+}
+
+</script>
+
+{% endblock %}

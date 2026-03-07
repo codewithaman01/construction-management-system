@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Attendance Dashboard</h2>
+
+<!-- 📅 MONTH FILTER -->
+<input type="month" id="month" onchange="loadCharts()">
+
+<br><br>
+
+<!-- 📊 CHARTS -->
+<canvas id="pieChart" width="400" height="200"></canvas>
+<br><br>
+<canvas id="barChart" width="400" height="200"></canvas>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+let pieChart, barChart;
+
+
+// LOAD CHART DATA
+function loadCharts(){
+
+    let month = document.getElementById('month').value;
+
+    fetch(`/hr/attendance-chart-data/?month=${month}`)
+    .then(res => res.json())
+    .then(data => {
+
+        // 🔵 PIE CHART
+        if(pieChart) pieChart.destroy();
+
+        pieChart = new Chart(document.getElementById('pieChart'), {
+            type: 'pie',
+            data: {
+                labels: data.pie_labels,
+                datasets: [{
+                    data: data.pie_values
+                }]
+            }
+        });
+
+
+        // 🔴 BAR CHART
+        if(barChart) barChart.destroy();
+
+        barChart = new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: data.bar_labels,
+                datasets: [{
+                    label: 'Present Days',
+                    data: data.bar_values
+                }]
+            }
+        });
+
+    });
+}
+
+
+// INIT
+window.onload = loadCharts;
+
+</script>
+
+{% endblock %}

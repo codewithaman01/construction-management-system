@@ -1,14 +1,8 @@
+# ✅ FIXED — core/urls.py
 from django.urls import path
-from .views import dashboard
+from . import views
 
 urlpatterns = [
-    path('', dashboard, name='dashboard'),
-]
-
-from django.urls import path
-from .views import dashboard, dashboard_data
-
-urlpatterns = [
-    path('', dashboard, name='dashboard'),
-    path('data/', dashboard_data, name='dashboard_data'),
+    path('',      views.dashboard,      name='dashboard'),
+    path('data/', views.dashboard_data, name='dashboard_data'),
 ]

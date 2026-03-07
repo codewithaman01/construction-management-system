@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Projects</h2>
+
+<input type="text" id="name" placeholder="Project Name">
+<input type="text" id="description" placeholder="Description">
+
+<select id="manager"></select>
+
+<input type="date" id="start_date">
+<input type="date" id="end_date">
+
+<select id="status">
+    <option value="pending">Pending</option>
+    <option value="ongoing">Ongoing</option>
+    <option value="completed">Completed</option>
+</select>
+
+<button onclick="addProject()">Add Project</button>
+
+<hr>
+
+<table border="1">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Manager</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="projectList"></tbody>
+</table>
+
+<script>
+
+function getCSRF(){
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+
+
+// LOAD USERS (MANAGERS)
+function loadManagers(){
+    fetch('/accounts/get-users/')
+    .then(res => res.json())
+    .then(data => {
+        let html = '';
+        data.users.forEach(u => {
+            html += `<option value="${u.id}">${u.username}</option>`;
+        });
+        document.getElementById('manager').innerHTML = html;
+    });
+}
+
+
+// LOAD PROJECTS
+function loadProjects(){
+    fetch('/projects/get-projects/')
+    .then(res => res.json())
+    .then(data => {
+
+        let html = '';
+
+        data.projects.forEach(p => {
+            html += `
+            <tr>
+                <td>${p.name}</td>
+                <td>${p.manager}</td>
+                <td>${p.status}</td>
+                <td>
+                    <button onclick="deleteProject(${p.id})">Delete</button>
+                </td>
+            </tr>`;
+        });
+
+        document.getElementById('projectList').innerHTML = html;
+    });
+}
+
+
+// ADD PROJECT
+function addProject(){
+
+    fetch('/projects/create-project/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({
+            name: document.getElementById('name').value,
+            description: document.getElementById('description').value,
+            manager: document.getElementById('manager').value,
+            start_date: document.getElementById('start_date').value,
+            end_date: document.getElementById('end_date').value,
+            status: document.getElementById('status').value
+        })
+    }).then(() => loadProjects());
+}
+
+
+// DELETE
+function deleteProject(id){
+    fetch('/projects/delete-project/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF()
+        },
+        body: JSON.stringify({id: id})
+    }).then(() => loadProjects());
+}
+
+
+// INIT
+window.onload = function(){
+    loadManagers();
+    loadProjects();
+}
+
+</script>
+
+{% endblock %}

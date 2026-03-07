@@ -1,7 +1,11 @@
+# ✅ FIXED — tickets/urls.py
 from django.urls import path
-from .views import ticket_page, save_ticket
+from . import views
 
 urlpatterns = [
-    path('', ticket_page, name='ticket_page'),
-    path('save/', save_ticket, name='save_ticket'),
+    path('',               views.ticket_page,          name='ticket_page'),
+    path('track/',         views.track_tickets_page,   name='track_tickets'),   # ✅ new
+    path('get/',           views.get_tickets,          name='get_tickets'),     # ✅ new
+    path('save/',          views.save_ticket,          name='save_ticket'),
+    path('update-status/', views.update_ticket_status, name='update_ticket_status'), # ✅ new
 ]
