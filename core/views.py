@@ -46,11 +46,15 @@ def dashboard(request):
 @login_required
 def dashboard_data(request):
 
+    employees = Employee.objects.all()
+
+    employees_count = 0
+    for e in employees:
+        if e.is_active:
+            employees_count += 1
+
     data = {
-        "projects": len(list(Project.objects.all())),
-        "tasks": len(list(Task.objects.all())),
-        "employees": len(list(Employee.objects.filter(is_active=True))),
-        "tickets": len(list(Ticket.objects.filter(status="Open"))),
+        "employees": employees_count,
     }
 
     return JsonResponse(data)
