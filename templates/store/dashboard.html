@@ -75,13 +75,19 @@
 
 {% block extra_js %}
 <script>
-fetch('/store/stats/')
-    .then(r => r.json())
+fetch('/store/stats/', { credentials: 'same-origin' })
+    .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    })
     .then(d => {
-        document.getElementById('statMaterials').textContent = d.total_materials;
-        document.getElementById('statLow').textContent       = d.low_stock_count;
-        document.getElementById('statPending').textContent   = d.pending_requests;
-        document.getElementById('statInward').textContent    = d.today_inward;
+        document.getElementById('statMaterials').textContent = d.total_materials ?? '—';
+        document.getElementById('statLow').textContent       = d.low_stock_count ?? '—';
+        document.getElementById('statPending').textContent   = d.pending_requests ?? '—';
+        document.getElementById('statInward').textContent    = d.today_inward ?? '—';
+    })
+    .catch(err => {
+        console.error('Store stats error:', err);
     });
 </script>
 {% endblock %}

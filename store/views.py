@@ -246,16 +246,28 @@ def update_requirement(request):
 
 @login_required
 def store_stats(request):
+    from datetime import date as date_type
 
     total_materials = Material.objects.count()
 
-    low_stock_count = Stock.objects.filter(
-        quantity__lte=F('material__reorder_level')
-    ).count()
+    # djongo (MongoDB) doesn't support F() cross-field comparisons reliably
+    # Compute low stock in Python as a safe fallback
+    try:
+        low_stock_count = Stock.objects.filter(
+            quantity__lte=F('material__reorder_level')
+        ).count()
+    except Exception:
+        low_stock_count = sum(
+            1 for s in Stock.objects.select_related('material').all()
+            if s.quantity <= s.material.reorder_level
+        )
 
     pending_requests = MaterialRequirement.objects.filter(status='pending').count()
 
-    today_inward = StockInward.objects.filter(date=date.today()).count()
+    try:
+        today_inward = StockInward.objects.filter(date=date_type.today()).count()
+    except Exception:
+        today_inward = 0
 
     return JsonResponse({
         'total_materials': total_materials,

@@ -1,0 +1,1044 @@
+{% extends 'base.html' %}
+{% block title %}Chat{% endblock %}
+{% block page_title %}Team Chat{% endblock %}
+{% block nav_chat %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ── CHAT LAYOUT ─────────────────────────────── */
+#chatWrap {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+}
+
+/* ── LEFT PANEL: ROOM LIST ───────────────────── */
+#roomPanel {
+    width: 270px;
+    min-width: 270px;
+    background: var(--panel);
+    border-right: 1px solid var(--edge);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+#roomHeader {
+    padding: 16px 16px 10px;
+    border-bottom: 1px solid var(--edge);
+    flex-shrink: 0;
+}
+#roomHeader h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 10px;
+    letter-spacing: 0.03em;
+}
+.room-actions {
+    display: flex;
+    gap: 6px;
+}
+.room-action-btn {
+    flex: 1;
+    padding: 7px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--edge);
+    background: var(--lift);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+}
+.room-action-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+.room-search {
+    padding: 10px 16px 8px;
+    flex-shrink: 0;
+}
+.room-search input {
+    width: 100%;
+    background: var(--lift);
+    border: 1px solid var(--edge);
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: var(--text);
+    font-size: 12px;
+    outline: none;
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.15s;
+}
+.room-search input:focus { border-color: var(--gold); }
+.room-search input::placeholder { color: var(--dim); }
+
+#roomList {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 8px;
+}
+#roomList::-webkit-scrollbar { width: 4px; }
+#roomList::-webkit-scrollbar-track { background: transparent; }
+#roomList::-webkit-scrollbar-thumb { background: var(--edge); border-radius: 4px; }
+
+.room-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.12s;
+    margin-bottom: 2px;
+}
+.room-item:hover { background: var(--lift); }
+.room-item.active { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.2); }
+.room-item.active .room-item-name { color: var(--gold); }
+
+.room-av {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+    flex-shrink: 0;
+    font-family: 'Syne', sans-serif;
+}
+.room-av.group {
+    background: rgba(245,158,11,0.15);
+    color: var(--gold);
+}
+.room-av.direct {
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+}
+.room-item-info { flex: 1; min-width: 0; }
+.room-item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.room-item-preview {
+    font-size: 11px;
+    color: var(--dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+.room-item-time {
+    font-size: 10px;
+    color: var(--dim);
+    flex-shrink: 0;
+}
+
+.room-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 10px 10px 4px;
+}
+
+/* ── RIGHT PANEL: MESSAGES ───────────────────── */
+#msgPanel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+}
+
+/* Empty state */
+#emptyState {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--dim);
+}
+#emptyState i { font-size: 48px; opacity: 0.15; }
+#emptyState h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: #475569;
+}
+#emptyState p { font-size: 12px; }
+
+/* Chat header */
+#chatHeader {
+    display: none;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--edge);
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+    flex-shrink: 0;
+}
+#chatRoomAv {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 12px;
+    font-family: 'Syne', sans-serif;
+}
+#chatRoomAv.group { background: rgba(245,158,11,0.15); color: var(--gold); }
+#chatRoomAv.direct { background: rgba(99,102,241,0.15); color: #818cf8; }
+#chatRoomTitle {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+}
+#chatRoomMeta {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 1px;
+}
+#chatHeaderRight {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.header-icon-btn {
+    width: 30px; height: 30px;
+    background: var(--lift);
+    border: 1px solid var(--edge);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--dim);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.header-icon-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+/* Message area */
+#msgArea {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+#msgArea::-webkit-scrollbar { width: 4px; }
+#msgArea::-webkit-scrollbar-track { background: transparent; }
+#msgArea::-webkit-scrollbar-thumb { background: var(--edge); border-radius: 4px; }
+
+/* Date divider */
+.date-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 10px;
+    color: var(--dim);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.date-divider::before,
+.date-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--edge);
+}
+
+/* Message bubbles */
+.msg-row {
+    display: flex;
+    gap: 9px;
+    margin-bottom: 2px;
+    align-items: flex-end;
+}
+.msg-row.me {
+    flex-direction: row-reverse;
+}
+.msg-row.me + .msg-row.me .msg-av,
+.msg-row:not(.me) + .msg-row:not(.me) .msg-av {
+    visibility: hidden;
+}
+.msg-av {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+    flex-shrink: 0;
+    font-family: 'Syne', sans-serif;
+    background: var(--lift);
+    color: var(--text);
+    border: 1px solid var(--edge);
+}
+.msg-av.me-av {
+    background: rgba(245,158,11,0.15);
+    color: var(--gold);
+    border-color: rgba(245,158,11,0.2);
+}
+.msg-bubble-wrap { display: flex; flex-direction: column; max-width: 60%; }
+.msg-row.me .msg-bubble-wrap { align-items: flex-end; }
+
+.msg-sender-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--dim);
+    margin-bottom: 3px;
+    padding: 0 4px;
+}
+.msg-bubble {
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-word;
+    position: relative;
+}
+.msg-bubble.them {
+    background: var(--lift);
+    color: var(--text);
+    border: 1px solid var(--edge);
+    border-bottom-left-radius: 4px;
+}
+.msg-bubble.me {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #1a1a1a;
+    border-bottom-right-radius: 4px;
+    font-weight: 500;
+}
+.msg-time {
+    font-size: 10px;
+    color: var(--dim);
+    margin-top: 3px;
+    padding: 0 4px;
+}
+
+/* Typing area */
+#inputArea {
+    display: none;
+    padding: 14px 20px;
+    border-top: 1px solid var(--edge);
+    background: var(--panel);
+    flex-shrink: 0;
+}
+#inputWrap {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--lift);
+    border: 1px solid var(--edge);
+    border-radius: 14px;
+    padding: 8px 10px 8px 16px;
+    transition: border-color 0.15s;
+}
+#inputWrap:focus-within { border-color: var(--gold); }
+#msgInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 13.5px;
+    font-family: 'DM Sans', sans-serif;
+    resize: none;
+    max-height: 120px;
+    min-height: 22px;
+    line-height: 1.5;
+    overflow-y: auto;
+}
+#msgInput::placeholder { color: var(--dim); }
+#sendBtn {
+    width: 34px; height: 34px;
+    background: var(--gold);
+    border: none;
+    border-radius: 9px;
+    color: #1a1a1a;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+}
+#sendBtn:hover { background: #d97706; }
+#sendBtn:active { transform: scale(0.93); }
+
+/* Loading spinner */
+.spin-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dim);
+}
+
+/* ── MODAL ───────────────────────────────────── */
+.chat-modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.chat-modal {
+    background: var(--panel);
+    border: 1px solid var(--edge);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+}
+.modal-head {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--edge);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.modal-head h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+}
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--dim);
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px;
+    transition: color 0.12s;
+}
+.modal-close:hover { color: var(--danger); }
+.modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.modal-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 6px;
+}
+.modal-input {
+    width: 100%;
+    background: var(--lift);
+    border: 1px solid var(--edge);
+    border-radius: 10px;
+    padding: 10px 13px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.15s;
+}
+.modal-input:focus { border-color: var(--gold); }
+.modal-input::placeholder { color: var(--dim); }
+
+.user-picker {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--edge);
+    border-radius: 10px;
+    background: var(--lift);
+}
+.user-picker::-webkit-scrollbar { width: 4px; }
+.user-picker::-webkit-scrollbar-thumb { background: var(--edge); border-radius: 4px; }
+.user-pick-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--edge);
+}
+.user-pick-item:last-child { border-bottom: none; }
+.user-pick-item:hover { background: rgba(245,158,11,0.07); }
+.user-pick-item.selected { background: rgba(245,158,11,0.12); }
+.user-pick-av {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: rgba(245,158,11,0.15);
+    color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+    font-family: 'Syne', sans-serif;
+}
+.user-pick-name { font-size: 13px; color: var(--text); font-weight: 500; }
+.user-pick-check {
+    margin-left: auto;
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid var(--edge);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: var(--gold);
+    transition: all 0.12s;
+}
+.user-pick-item.selected .user-pick-check {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #1a1a1a;
+}
+.modal-foot {
+    padding: 14px 20px;
+    border-top: 1px solid var(--edge);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.btn-cancel {
+    padding: 8px 16px;
+    border: 1px solid var(--edge);
+    background: transparent;
+    color: var(--text);
+    border-radius: 9px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.12s;
+}
+.btn-cancel:hover { border-color: var(--dim); }
+.btn-primary {
+    padding: 8px 18px;
+    background: var(--gold);
+    border: none;
+    color: #1a1a1a;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.12s;
+}
+.btn-primary:hover { background: #d97706; }
+
+.modal-error {
+    font-size: 12px;
+    color: var(--danger);
+    padding: 0 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="chatWrap">
+
+    <!-- ── ROOM LIST PANEL ── -->
+    <div id="roomPanel">
+        <div id="roomHeader">
+            <h2><i class="fas fa-comments" style="color:var(--gold);margin-right:7px;font-size:13px;"></i>Messages</h2>
+            <div class="room-actions">
+                <button class="room-action-btn" onclick="openNewGroupModal()">
+                    <i class="fas fa-users"></i> New Group
+                </button>
+                <button class="room-action-btn" onclick="openNewDMModal()">
+                    <i class="fas fa-user"></i> Direct Message
+                </button>
+            </div>
+        </div>
+        <div class="room-search">
+            <input type="text" id="roomSearch" placeholder="Search conversations…" oninput="filterRooms()">
+        </div>
+        <div id="roomList">
+            <div class="spin-wrap" style="height:120px;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MESSAGE PANEL ── -->
+    <div id="msgPanel">
+
+        <!-- Empty state -->
+        <div id="emptyState">
+            <i class="fas fa-comment-dots"></i>
+            <h3>Select a conversation</h3>
+            <p>Pick a room from the left, or start a new chat.</p>
+        </div>
+
+        <!-- Chat header (hidden until room selected) -->
+        <div id="chatHeader">
+            <div id="chatRoomAv" class="group">G</div>
+            <div>
+                <div id="chatRoomTitle">Room Name</div>
+                <div id="chatRoomMeta">Loading…</div>
+            </div>
+            <div id="chatHeaderRight">
+                <div class="header-icon-btn" title="Members" onclick="showMembers()">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="msgArea" style="display:none;"></div>
+
+        <!-- Input -->
+        <div id="inputArea">
+            <div id="inputWrap">
+                <textarea id="msgInput" placeholder="Type a message…" rows="1"></textarea>
+                <button id="sendBtn" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── NEW GROUP MODAL ── -->
+<div id="newGroupModal" class="chat-modal-bg" style="display:none;">
+    <div class="chat-modal">
+        <div class="modal-head">
+            <h3><i class="fas fa-users" style="color:var(--gold);margin-right:8px;"></i>New Group Chat</h3>
+            <button class="modal-close" onclick="closeNewGroupModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div>
+                <div class="modal-label">Group Name *</div>
+                <input type="text" id="groupName" class="modal-input" placeholder="e.g. Site Team, Admin Group…">
+            </div>
+            <div>
+                <div class="modal-label">Add Members</div>
+                <div id="groupMemberList" class="user-picker">
+                    <div style="padding:14px;text-align:center;color:var(--dim);font-size:12px;">Loading users…</div>
+                </div>
+            </div>
+            <div id="groupError" class="modal-error"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-cancel" onclick="closeNewGroupModal()">Cancel</button>
+            <button class="btn-primary" onclick="submitNewGroup()">
+                <i class="fas fa-plus" style="margin-right:5px;"></i>Create Group
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── NEW DM MODAL ── -->
+<div id="newDMModal" class="chat-modal-bg" style="display:none;">
+    <div class="chat-modal">
+        <div class="modal-head">
+            <h3><i class="fas fa-user" style="color:#818cf8;margin-right:8px;"></i>Direct Message</h3>
+            <button class="modal-close" onclick="closeNewDMModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div>
+                <div class="modal-label">Select a User</div>
+                <div id="dmUserList" class="user-picker">
+                    <div style="padding:14px;text-align:center;color:var(--dim);font-size:12px;">Loading users…</div>
+                </div>
+            </div>
+            <div id="dmError" class="modal-error"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-cancel" onclick="closeNewDMModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+// ─── STATE ────────────────────────────────────
+let activeRoomId   = null;
+let activeRoomType = 'group';
+let lastMsgId      = null;
+let pollTimer      = null;
+let allRooms       = [];
+let allUsers       = [];
+let groupSelected  = new Set();   // selected user IDs for new group
+
+// ─── INIT ─────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    // Make this page full-height (no padding)
+    document.getElementById('page').classList.add('full-height');
+    loadRooms();
+    loadUsers();
+    setupInputAutoResize();
+    setupEnterSend();
+});
+
+// ─── ROOMS ────────────────────────────────────
+function loadRooms() {
+    fetch('/chat/get-rooms/', { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+            allRooms = d.rooms;
+            renderRooms(allRooms);
+        })
+        .catch(() => {
+            document.getElementById('roomList').innerHTML =
+                '<div style="padding:16px;color:var(--dim);font-size:12px;text-align:center;">Failed to load rooms.</div>';
+        });
+}
+
+function renderRooms(rooms) {
+    const list = document.getElementById('roomList');
+    if (!rooms.length) {
+        list.innerHTML = `
+        <div style="padding:24px 12px;text-align:center;color:var(--dim);">
+            <i class="fas fa-comment-slash" style="font-size:28px;opacity:0.2;margin-bottom:10px;display:block;"></i>
+            <div style="font-size:12px;">No conversations yet.</div>
+            <div style="font-size:11px;margin-top:4px;opacity:0.6;">Start a group or send a DM.</div>
+        </div>`;
+        return;
+    }
+
+    const groups  = rooms.filter(r => r.type === 'group');
+    const directs = rooms.filter(r => r.type === 'direct');
+
+    let html = '';
+
+    if (groups.length) {
+        html += `<div class="room-section-label">Groups</div>`;
+        groups.forEach(r => { html += roomItemHTML(r); });
+    }
+    if (directs.length) {
+        html += `<div class="room-section-label">Direct Messages</div>`;
+        directs.forEach(r => { html += roomItemHTML(r); });
+    }
+
+    list.innerHTML = html;
+}
+
+function roomItemHTML(r) {
+    const initial = r.name ? r.name[0].toUpperCase() : '?';
+    const isActive = r.id == activeRoomId;
+    const preview  = r.last_msg
+        ? `<span style="color:var(--dim)">${escHtml(r.last_sender ? r.last_sender+': ' : '')}${escHtml(r.last_msg)}</span>`
+        : `<span style="color:var(--dim);font-style:italic;">No messages yet</span>`;
+
+    return `
+    <div class="room-item ${isActive ? 'active' : ''}" onclick="openRoom('${r.id}', '${r.type}', '${escHtml(r.name)}')">
+        <div class="room-av ${r.type}">${initial}</div>
+        <div class="room-item-info">
+            <div class="room-item-name">${escHtml(r.name)}</div>
+            <div class="room-item-preview">${preview}</div>
+        </div>
+        ${r.last_time ? `<div class="room-item-time">${r.last_time}</div>` : ''}
+    </div>`;
+}
+
+function filterRooms() {
+    const q = document.getElementById('roomSearch').value.toLowerCase();
+    renderRooms(q ? allRooms.filter(r => r.name.toLowerCase().includes(q)) : allRooms);
+}
+
+// ─── OPEN ROOM ────────────────────────────────
+function openRoom(roomId, roomType, roomName) {
+    if (activeRoomId == roomId) return;
+
+    // Stop existing poll
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+    activeRoomId   = roomId;
+    activeRoomType = roomType;
+    lastMsgId      = null;
+
+    // Update room list highlight
+    document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
+    event && event.currentTarget && event.currentTarget.classList.add('active');
+
+    // Show chat UI
+    document.getElementById('emptyState').style.display  = 'none';
+    document.getElementById('chatHeader').style.display  = 'flex';
+    document.getElementById('msgArea').style.display     = 'flex';
+    document.getElementById('inputArea').style.display   = 'block';
+
+    // Set header
+    const av = document.getElementById('chatRoomAv');
+    av.textContent = roomName ? roomName[0].toUpperCase() : '?';
+    av.className   = `room-av ${roomType}`;
+
+    document.getElementById('chatRoomTitle').textContent = roomName;
+
+    // Find room info
+    const room = allRooms.find(r => r.id == roomId);
+    if (room) {
+        const memberCount = room.members.length;
+        document.getElementById('chatRoomMeta').textContent =
+            roomType === 'group'
+                ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
+                : 'Direct Message';
+    }
+
+    // Load messages
+    const area = document.getElementById('msgArea');
+    area.innerHTML = '<div class="spin-wrap"><i class="fas fa-spinner fa-spin"></i></div>';
+
+    fetch(`/chat/${roomId}/messages/`, { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+            renderMessages(d.messages, false);
+            if (d.messages.length) {
+                lastMsgId = d.messages[d.messages.length - 1].id;
+            }
+            scrollToBottom();
+        });
+
+    // Poll for new messages every 2.5s
+    pollTimer = setInterval(pollNewMessages, 2500);
+
+    // Focus input
+    setTimeout(() => document.getElementById('msgInput').focus(), 100);
+}
+
+// ─── MESSAGES ─────────────────────────────────
+let lastRenderedDate = null;
+
+function renderMessages(messages, append) {
+    const area = document.getElementById('msgArea');
+    if (!append) {
+        area.innerHTML = '';
+        lastRenderedDate = null;
+    }
+
+    if (!messages.length && !append) {
+        area.innerHTML = `
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--dim);">
+            <i class="fas fa-comments" style="font-size:32px;opacity:0.15;"></i>
+            <span style="font-size:12px;">No messages yet. Say hello!</span>
+        </div>`;
+        return;
+    }
+
+    let html = '';
+    messages.forEach((m, i) => {
+        // Date divider
+        if (m.date !== lastRenderedDate) {
+            html += `<div class="date-divider">${escHtml(m.date)}</div>`;
+            lastRenderedDate = m.date;
+        }
+
+        const isMe = m.is_me;
+        // Hide avatar if same sender consecutive
+        const prevMsg = append
+            ? null
+            : (i > 0 ? messages[i-1] : null);
+        const showName = !isMe && (!prevMsg || prevMsg.sender !== m.sender || prevMsg.date !== m.date);
+
+        html += `
+        <div class="msg-row ${isMe ? 'me' : ''}">
+            <div class="msg-av ${isMe ? 'me-av' : ''}">${escHtml(m.initial)}</div>
+            <div class="msg-bubble-wrap">
+                ${showName ? `<div class="msg-sender-name">${escHtml(m.sender)}</div>` : ''}
+                <div class="msg-bubble ${isMe ? 'me' : 'them'}">${escHtml(m.text)}</div>
+                <div class="msg-time">${escHtml(m.time)}</div>
+            </div>
+        </div>`;
+    });
+
+    if (append) {
+        area.insertAdjacentHTML('beforeend', html);
+    } else {
+        area.innerHTML = html;
+    }
+}
+
+function pollNewMessages() {
+    if (!activeRoomId) return;
+    const url = lastMsgId
+        ? `/chat/${activeRoomId}/messages/?after=${lastMsgId}`
+        : `/chat/${activeRoomId}/messages/`;
+
+    fetch(url, { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.messages && d.messages.length) {
+                renderMessages(d.messages, true);
+                lastMsgId = d.messages[d.messages.length - 1].id;
+                scrollToBottom();
+                // Refresh room list for preview update
+                loadRooms();
+            }
+        })
+        .catch(() => {});
+}
+
+function sendMessage() {
+    const input = document.getElementById('msgInput');
+    const text  = input.value.trim();
+    if (!text || !activeRoomId) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    apiFetch(`/chat/${activeRoomId}/send/`, 'POST', { text })
+        .then(d => {
+            if (d.error) return;
+            renderMessages([d], true);
+            lastMsgId = d.id;
+            scrollToBottom();
+            loadRooms(); // update previews
+        });
+}
+
+function scrollToBottom() {
+    const area = document.getElementById('msgArea');
+    area.scrollTop = area.scrollHeight;
+}
+
+// ─── USERS ────────────────────────────────────
+function loadUsers() {
+    fetch('/chat/get-users/', { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => { allUsers = d.users; });
+}
+
+// ─── NEW GROUP MODAL ──────────────────────────
+function openNewGroupModal() {
+    groupSelected = new Set();
+    document.getElementById('groupName').value = '';
+    document.getElementById('groupError').textContent = '';
+    renderGroupMemberPicker();
+    document.getElementById('newGroupModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('groupName').focus(), 100);
+}
+function closeNewGroupModal() {
+    document.getElementById('newGroupModal').style.display = 'none';
+}
+
+function renderGroupMemberPicker() {
+    const list = document.getElementById('groupMemberList');
+    if (!allUsers.length) {
+        list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--dim);font-size:12px;">No other users found.</div>';
+        return;
+    }
+    list.innerHTML = allUsers.map(u => `
+    <div class="user-pick-item ${groupSelected.has(u.id) ? 'selected' : ''}"
+         onclick="toggleGroupMember(${u.id}, this)">
+        <div class="user-pick-av">${u.username[0].toUpperCase()}</div>
+        <div class="user-pick-name">${escHtml(u.username)}</div>
+        <div class="user-pick-check">
+            ${groupSelected.has(u.id) ? '<i class="fas fa-check"></i>' : ''}
+        </div>
+    </div>`).join('');
+}
+
+function toggleGroupMember(userId, el) {
+    if (groupSelected.has(userId)) {
+        groupSelected.delete(userId);
+        el.classList.remove('selected');
+        el.querySelector('.user-pick-check').innerHTML = '';
+    } else {
+        groupSelected.add(userId);
+        el.classList.add('selected');
+        el.querySelector('.user-pick-check').innerHTML = '<i class="fas fa-check"></i>';
+    }
+}
+
+function submitNewGroup() {
+    const name = document.getElementById('groupName').value.trim();
+    const errEl = document.getElementById('groupError');
+    if (!name) { errEl.textContent = 'Group name is required.'; return; }
+    errEl.textContent = '';
+
+    apiFetch('/chat/create-room/', 'POST', {
+        name:    name,
+        members: Array.from(groupSelected),
+    }).then(d => {
+        if (d.error) { errEl.textContent = d.error; return; }
+        closeNewGroupModal();
+        loadRooms();
+        setTimeout(() => openRoom(d.id, 'group', d.name), 300);
+    });
+}
+
+// ─── NEW DM MODAL ─────────────────────────────
+function openNewDMModal() {
+    document.getElementById('dmError').textContent = '';
+    renderDMUserList();
+    document.getElementById('newDMModal').style.display = 'flex';
+}
+function closeNewDMModal() {
+    document.getElementById('newDMModal').style.display = 'none';
+}
+
+function renderDMUserList() {
+    const list = document.getElementById('dmUserList');
+    if (!allUsers.length) {
+        list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--dim);font-size:12px;">No other users found.</div>';
+        return;
+    }
+    list.innerHTML = allUsers.map(u => `
+    <div class="user-pick-item" onclick="startDM(${u.id})">
+        <div class="user-pick-av" style="background:rgba(99,102,241,0.15);color:#818cf8;">${u.username[0].toUpperCase()}</div>
+        <div class="user-pick-name">${escHtml(u.username)}</div>
+        <i class="fas fa-arrow-right" style="margin-left:auto;color:var(--dim);font-size:11px;"></i>
+    </div>`).join('');
+}
+
+function startDM(userId) {
+    const errEl = document.getElementById('dmError');
+    errEl.textContent = '';
+    apiFetch('/chat/open-dm/', 'POST', { user_id: userId })
+        .then(d => {
+            if (d.error) { errEl.textContent = d.error; return; }
+            closeNewDMModal();
+            loadRooms();
+            setTimeout(() => openRoom(d.id, 'direct', d.name), 300);
+        });
+}
+
+// ─── SHOW MEMBERS ─────────────────────────────
+function showMembers() {
+    const room = allRooms.find(r => r.id == activeRoomId);
+    if (!room) return;
+    const names = room.members.join(', ');
+    alert(`Members in "${room.name}":\n\n${names}`);
+}
+
+// ─── INPUT AUTO-RESIZE ────────────────────────
+function setupInputAutoResize() {
+    const inp = document.getElementById('msgInput');
+    inp.addEventListener('input', () => {
+        inp.style.height = 'auto';
+        inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+    });
+}
+
+function setupEnterSend() {
+    document.getElementById('msgInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+}
+
+// ─── UTILS ────────────────────────────────────
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}

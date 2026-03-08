@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'tickets',
     'hr',
     'store',
+    'chat',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
