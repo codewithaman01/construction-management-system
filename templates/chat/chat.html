@@ -661,7 +661,6 @@
 
 {% endblock %}
 
-
 {% block extra_js %}
 <script>
 // ─── STATE ────────────────────────────────────
@@ -671,374 +670,323 @@ let lastMsgId      = null;
 let pollTimer      = null;
 let allRooms       = [];
 let allUsers       = [];
-let groupSelected  = new Set();   // selected user IDs for new group
+let groupSelected  = new Set();
+let renderedMsgIds = new Set();   // prevent duplicate messages
+
 
 // ─── INIT ─────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // Make this page full-height (no padding)
+
     document.getElementById('page').classList.add('full-height');
+
     loadRooms();
     loadUsers();
+
     setupInputAutoResize();
     setupEnterSend();
+
 });
+
 
 // ─── ROOMS ────────────────────────────────────
 function loadRooms() {
+
     fetch('/chat/get-rooms/', { credentials: 'same-origin' })
-        .then(r => r.json())
-        .then(d => {
-            allRooms = d.rooms;
-            renderRooms(allRooms);
-        })
-        .catch(() => {
-            document.getElementById('roomList').innerHTML =
-                '<div style="padding:16px;color:var(--dim);font-size:12px;text-align:center;">Failed to load rooms.</div>';
-        });
+    .then(r => r.json())
+    .then(d => {
+
+        allRooms = d.rooms;
+        renderRooms(allRooms);
+
+    });
+
 }
 
 function renderRooms(rooms) {
+
     const list = document.getElementById('roomList');
+
     if (!rooms.length) {
-        list.innerHTML = `
-        <div style="padding:24px 12px;text-align:center;color:var(--dim);">
-            <i class="fas fa-comment-slash" style="font-size:28px;opacity:0.2;margin-bottom:10px;display:block;"></i>
-            <div style="font-size:12px;">No conversations yet.</div>
-            <div style="font-size:11px;margin-top:4px;opacity:0.6;">Start a group or send a DM.</div>
-        </div>`;
+        list.innerHTML = `<div style="padding:20px;color:var(--dim)">No conversations</div>`;
         return;
     }
 
-    const groups  = rooms.filter(r => r.type === 'group');
-    const directs = rooms.filter(r => r.type === 'direct');
-
     let html = '';
 
-    if (groups.length) {
-        html += `<div class="room-section-label">Groups</div>`;
-        groups.forEach(r => { html += roomItemHTML(r); });
-    }
-    if (directs.length) {
-        html += `<div class="room-section-label">Direct Messages</div>`;
-        directs.forEach(r => { html += roomItemHTML(r); });
-    }
+    rooms.forEach(r => {
+
+        const initial = r.name ? r.name[0].toUpperCase() : '?';
+
+        html += `
+        <div class="room-item"
+            onclick="openRoom('${r.id}','${r.type}','${escHtml(r.name)}')">
+
+            <div class="room-av ${r.type}">
+                ${initial}
+            </div>
+
+            <div class="room-item-info">
+
+                <div class="room-item-name">
+                    ${escHtml(r.name)}
+                </div>
+
+                <div class="room-item-preview">
+                    ${r.last_msg ? escHtml(r.last_msg) : 'No messages yet'}
+                </div>
+
+            </div>
+
+        </div>`;
+
+    });
 
     list.innerHTML = html;
+
 }
 
-function roomItemHTML(r) {
-    const initial = r.name ? r.name[0].toUpperCase() : '?';
-    const isActive = r.id == activeRoomId;
-    const preview  = r.last_msg
-        ? `<span style="color:var(--dim)">${escHtml(r.last_sender ? r.last_sender+': ' : '')}${escHtml(r.last_msg)}</span>`
-        : `<span style="color:var(--dim);font-style:italic;">No messages yet</span>`;
-
-    return `
-    <div class="room-item ${isActive ? 'active' : ''}" onclick="openRoom('${r.id}', '${r.type}', '${escHtml(r.name)}')">
-        <div class="room-av ${r.type}">${initial}</div>
-        <div class="room-item-info">
-            <div class="room-item-name">${escHtml(r.name)}</div>
-            <div class="room-item-preview">${preview}</div>
-        </div>
-        ${r.last_time ? `<div class="room-item-time">${r.last_time}</div>` : ''}
-    </div>`;
-}
-
-function filterRooms() {
-    const q = document.getElementById('roomSearch').value.toLowerCase();
-    renderRooms(q ? allRooms.filter(r => r.name.toLowerCase().includes(q)) : allRooms);
-}
 
 // ─── OPEN ROOM ────────────────────────────────
 function openRoom(roomId, roomType, roomName) {
+
     if (activeRoomId == roomId) return;
 
-    // Stop existing poll
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
 
     activeRoomId   = roomId;
     activeRoomType = roomType;
     lastMsgId      = null;
+    renderedMsgIds.clear();
 
-    // Update room list highlight
-    document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
-    event && event.currentTarget && event.currentTarget.classList.add('active');
-
-    // Show chat UI
-    document.getElementById('emptyState').style.display  = 'none';
-    document.getElementById('chatHeader').style.display  = 'flex';
-    document.getElementById('msgArea').style.display     = 'flex';
-    document.getElementById('inputArea').style.display   = 'block';
-
-    // Set header
-    const av = document.getElementById('chatRoomAv');
-    av.textContent = roomName ? roomName[0].toUpperCase() : '?';
-    av.className   = `room-av ${roomType}`;
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('chatHeader').style.display = 'flex';
+    document.getElementById('msgArea').style.display = 'flex';
+    document.getElementById('inputArea').style.display = 'block';
 
     document.getElementById('chatRoomTitle').textContent = roomName;
 
-    // Find room info
-    const room = allRooms.find(r => r.id == roomId);
-    if (room) {
-        const memberCount = room.members.length;
-        document.getElementById('chatRoomMeta').textContent =
-            roomType === 'group'
-                ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
-                : 'Direct Message';
-    }
-
-    // Load messages
     const area = document.getElementById('msgArea');
-    area.innerHTML = '<div class="spin-wrap"><i class="fas fa-spinner fa-spin"></i></div>';
 
-    fetch(`/chat/${roomId}/messages/`, { credentials: 'same-origin' })
-        .then(r => r.json())
-        .then(d => {
-            renderMessages(d.messages, false);
-            if (d.messages.length) {
-                lastMsgId = d.messages[d.messages.length - 1].id;
-            }
-            scrollToBottom();
-        });
+    area.innerHTML = `<div class="spin-wrap"><i class="fas fa-spinner fa-spin"></i></div>`;
 
-    // Poll for new messages every 2.5s
-    pollTimer = setInterval(pollNewMessages, 2500);
+    fetch(`/chat/${roomId}/messages/`)
+    .then(r => r.json())
+    .then(d => {
 
-    // Focus input
-    setTimeout(() => document.getElementById('msgInput').focus(), 100);
+        renderMessages(d.messages,false);
+
+        if (d.messages.length){
+            lastMsgId = d.messages[d.messages.length-1].id;
+        }
+
+        scrollToBottom();
+
+    });
+
+    pollTimer = setInterval(pollNewMessages,4000);
+
 }
 
-// ─── MESSAGES ─────────────────────────────────
+
+// ─── RENDER MESSAGES ──────────────────────────
 let lastRenderedDate = null;
 
-function renderMessages(messages, append) {
+function renderMessages(messages,append){
+
     const area = document.getElementById('msgArea');
-    if (!append) {
+
+    if(!append){
+
         area.innerHTML = '';
         lastRenderedDate = null;
+
     }
 
-    if (!messages.length && !append) {
-        area.innerHTML = `
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--dim);">
-            <i class="fas fa-comments" style="font-size:32px;opacity:0.15;"></i>
-            <span style="font-size:12px;">No messages yet. Say hello!</span>
-        </div>`;
+    if(!messages.length && !append){
+
+        area.innerHTML = `<div style="padding:20px;color:var(--dim)">No messages yet</div>`;
         return;
+
     }
 
-    let html = '';
-    messages.forEach((m, i) => {
-        // Date divider
-        if (m.date !== lastRenderedDate) {
+    let html='';
+
+    messages.forEach((m,i)=>{
+
+        if(renderedMsgIds.has(m.id)) return;
+
+        renderedMsgIds.add(m.id);
+
+        if(m.date !== lastRenderedDate){
+
             html += `<div class="date-divider">${escHtml(m.date)}</div>`;
             lastRenderedDate = m.date;
+
         }
 
         const isMe = m.is_me;
-        // Hide avatar if same sender consecutive
-        const prevMsg = append
-            ? null
-            : (i > 0 ? messages[i-1] : null);
-        const showName = !isMe && (!prevMsg || prevMsg.sender !== m.sender || prevMsg.date !== m.date);
 
         html += `
-        <div class="msg-row ${isMe ? 'me' : ''}">
-            <div class="msg-av ${isMe ? 'me-av' : ''}">${escHtml(m.initial)}</div>
-            <div class="msg-bubble-wrap">
-                ${showName ? `<div class="msg-sender-name">${escHtml(m.sender)}</div>` : ''}
-                <div class="msg-bubble ${isMe ? 'me' : 'them'}">${escHtml(m.text)}</div>
-                <div class="msg-time">${escHtml(m.time)}</div>
+        <div class="msg-row ${isMe?'me':''}" id="msg-${m.id}">
+
+            <div class="msg-av ${isMe?'me-av':''}">
+                ${escHtml(m.initial)}
             </div>
+
+            <div class="msg-bubble-wrap">
+
+                <div class="msg-bubble ${isMe?'me':'them'}">
+                    ${escHtml(m.text)}
+                </div>
+
+                <div class="msg-time">
+                    ${escHtml(m.time)}
+                </div>
+
+            </div>
+
         </div>`;
+
     });
 
-    if (append) {
-        area.insertAdjacentHTML('beforeend', html);
-    } else {
+    if(append)
+        area.insertAdjacentHTML('beforeend',html);
+    else
         area.innerHTML = html;
-    }
+
 }
 
-function pollNewMessages() {
-    if (!activeRoomId) return;
+
+// ─── POLL NEW MESSAGES ────────────────────────
+function pollNewMessages(){
+
+    if(!activeRoomId) return;
+
     const url = lastMsgId
         ? `/chat/${activeRoomId}/messages/?after=${lastMsgId}`
         : `/chat/${activeRoomId}/messages/`;
 
-    fetch(url, { credentials: 'same-origin' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.messages && d.messages.length) {
-                renderMessages(d.messages, true);
-                lastMsgId = d.messages[d.messages.length - 1].id;
-                scrollToBottom();
-                // Refresh room list for preview update
-                loadRooms();
-            }
-        })
-        .catch(() => {});
-}
+    fetch(url)
+    .then(r=>r.json())
+    .then(d=>{
 
-function sendMessage() {
-    const input = document.getElementById('msgInput');
-    const text  = input.value.trim();
-    if (!text || !activeRoomId) return;
+        if(d.messages && d.messages.length){
 
-    input.value = '';
-    input.style.height = 'auto';
+            renderMessages(d.messages,true);
 
-    apiFetch(`/chat/${activeRoomId}/send/`, 'POST', { text })
-        .then(d => {
-            if (d.error) return;
-            renderMessages([d], true);
-            lastMsgId = d.id;
+            lastMsgId = d.messages[d.messages.length-1].id;
+
             scrollToBottom();
-            loadRooms(); // update previews
-        });
+
+            loadRooms();
+
+        }
+
+    });
+
 }
 
-function scrollToBottom() {
-    const area = document.getElementById('msgArea');
-    area.scrollTop = area.scrollHeight;
+
+// ─── SEND MESSAGE ─────────────────────────────
+function sendMessage(){
+
+    const input = document.getElementById('msgInput');
+
+    const text = input.value.trim();
+
+    if(!text || !activeRoomId) return;
+
+    input.value='';
+
+    apiFetch(`/chat/${activeRoomId}/send/`,'POST',{text})
+
+    .then(d=>{
+
+        if(d.error) return;
+
+        renderMessages([d],true);
+
+        lastMsgId = d.id;
+
+        scrollToBottom();
+
+        loadRooms();
+
+    });
+
 }
+
+
+// ─── SCROLL ───────────────────────────────────
+function scrollToBottom(){
+
+    const area = document.getElementById('msgArea');
+
+    area.scrollTop = area.scrollHeight;
+
+}
+
 
 // ─── USERS ────────────────────────────────────
-function loadUsers() {
-    fetch('/chat/get-users/', { credentials: 'same-origin' })
-        .then(r => r.json())
-        .then(d => { allUsers = d.users; });
-}
+function loadUsers(){
 
-// ─── NEW GROUP MODAL ──────────────────────────
-function openNewGroupModal() {
-    groupSelected = new Set();
-    document.getElementById('groupName').value = '';
-    document.getElementById('groupError').textContent = '';
-    renderGroupMemberPicker();
-    document.getElementById('newGroupModal').style.display = 'flex';
-    setTimeout(() => document.getElementById('groupName').focus(), 100);
-}
-function closeNewGroupModal() {
-    document.getElementById('newGroupModal').style.display = 'none';
-}
+    fetch('/chat/get-users/')
+    .then(r=>r.json())
+    .then(d=>{
 
-function renderGroupMemberPicker() {
-    const list = document.getElementById('groupMemberList');
-    if (!allUsers.length) {
-        list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--dim);font-size:12px;">No other users found.</div>';
-        return;
-    }
-    list.innerHTML = allUsers.map(u => `
-    <div class="user-pick-item ${groupSelected.has(u.id) ? 'selected' : ''}"
-         onclick="toggleGroupMember(${u.id}, this)">
-        <div class="user-pick-av">${u.username[0].toUpperCase()}</div>
-        <div class="user-pick-name">${escHtml(u.username)}</div>
-        <div class="user-pick-check">
-            ${groupSelected.has(u.id) ? '<i class="fas fa-check"></i>' : ''}
-        </div>
-    </div>`).join('');
-}
+        allUsers = d.users;
 
-function toggleGroupMember(userId, el) {
-    if (groupSelected.has(userId)) {
-        groupSelected.delete(userId);
-        el.classList.remove('selected');
-        el.querySelector('.user-pick-check').innerHTML = '';
-    } else {
-        groupSelected.add(userId);
-        el.classList.add('selected');
-        el.querySelector('.user-pick-check').innerHTML = '<i class="fas fa-check"></i>';
-    }
-}
-
-function submitNewGroup() {
-    const name = document.getElementById('groupName').value.trim();
-    const errEl = document.getElementById('groupError');
-    if (!name) { errEl.textContent = 'Group name is required.'; return; }
-    errEl.textContent = '';
-
-    apiFetch('/chat/create-room/', 'POST', {
-        name:    name,
-        members: Array.from(groupSelected),
-    }).then(d => {
-        if (d.error) { errEl.textContent = d.error; return; }
-        closeNewGroupModal();
-        loadRooms();
-        setTimeout(() => openRoom(d.id, 'group', d.name), 300);
     });
+
 }
 
-// ─── NEW DM MODAL ─────────────────────────────
-function openNewDMModal() {
-    document.getElementById('dmError').textContent = '';
-    renderDMUserList();
-    document.getElementById('newDMModal').style.display = 'flex';
-}
-function closeNewDMModal() {
-    document.getElementById('newDMModal').style.display = 'none';
-}
 
-function renderDMUserList() {
-    const list = document.getElementById('dmUserList');
-    if (!allUsers.length) {
-        list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--dim);font-size:12px;">No other users found.</div>';
-        return;
-    }
-    list.innerHTML = allUsers.map(u => `
-    <div class="user-pick-item" onclick="startDM(${u.id})">
-        <div class="user-pick-av" style="background:rgba(99,102,241,0.15);color:#818cf8;">${u.username[0].toUpperCase()}</div>
-        <div class="user-pick-name">${escHtml(u.username)}</div>
-        <i class="fas fa-arrow-right" style="margin-left:auto;color:var(--dim);font-size:11px;"></i>
-    </div>`).join('');
-}
+// ─── INPUT AUTO RESIZE ────────────────────────
+function setupInputAutoResize(){
 
-function startDM(userId) {
-    const errEl = document.getElementById('dmError');
-    errEl.textContent = '';
-    apiFetch('/chat/open-dm/', 'POST', { user_id: userId })
-        .then(d => {
-            if (d.error) { errEl.textContent = d.error; return; }
-            closeNewDMModal();
-            loadRooms();
-            setTimeout(() => openRoom(d.id, 'direct', d.name), 300);
-        });
-}
-
-// ─── SHOW MEMBERS ─────────────────────────────
-function showMembers() {
-    const room = allRooms.find(r => r.id == activeRoomId);
-    if (!room) return;
-    const names = room.members.join(', ');
-    alert(`Members in "${room.name}":\n\n${names}`);
-}
-
-// ─── INPUT AUTO-RESIZE ────────────────────────
-function setupInputAutoResize() {
     const inp = document.getElementById('msgInput');
-    inp.addEventListener('input', () => {
-        inp.style.height = 'auto';
-        inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+
+    inp.addEventListener('input',()=>{
+
+        inp.style.height='auto';
+        inp.style.height = inp.scrollHeight + 'px';
+
     });
+
 }
 
-function setupEnterSend() {
-    document.getElementById('msgInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+
+// ─── ENTER SEND ───────────────────────────────
+function setupEnterSend(){
+
+    document.getElementById('msgInput').addEventListener('keydown',e=>{
+
+        if(e.key==='Enter' && !e.shiftKey){
+
             e.preventDefault();
             sendMessage();
+
         }
+
     });
+
 }
 
-// ─── UTILS ────────────────────────────────────
-function escHtml(str) {
-    if (!str) return '';
+
+// ─── UTIL ─────────────────────────────────────
+function escHtml(str){
+
+    if(!str) return '';
+
     return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+
 }
 </script>
 {% endblock %}
